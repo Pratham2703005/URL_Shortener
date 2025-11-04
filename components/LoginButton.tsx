@@ -48,7 +48,7 @@ export default function LoginButton() {
   }
 
   return (
-    <div className="flex flex-col sm:flex-row gap-4">
+    <div className="flex flex-col sm:flex-row gap-4 justify-center">
       <button 
         onClick={() => signIn('google')}
         className="flex items-center justify-center gap-3 rounded-lg bg-white px-8 py-3 text-lg font-semibold text-gray-700 shadow-md hover:shadow-lg transition-shadow border border-gray-300"
