@@ -47,6 +47,116 @@ A modern, feature-rich URL shortening service built with Next.js 16, featuring O
 
 ---
 
+## 📊 Shortened URL Click Flow
+
+The following diagram shows the complete flow from clicking a shortened URL to being redirected to the original destination.
+
+```mermaid
+graph TB
+    Start([User Clicks Shortened URL]) --> Request[Browser sends GET request]
+    
+    Request --> RouteHandler{Next.js Route Handler}
+    
+    RouteHandler --> ExtractCode[Extract shortCode from URL params]
+    
+    ExtractCode --> QueryDB[(Query MongoDB via Prisma)]
+    
+    QueryDB --> CheckExists{URL Found?}
+    
+    CheckExists -->|No| Return404[Return 404 Response]
+    Return404 --> End404([User sees 404 page])
+    
+    CheckExists -->|Yes| CheckActive{Is URL Active?}
+    
+    CheckActive -->|No| ReturnInactive[Return 404 Response]
+    ReturnInactive --> EndInactive([User sees 404 page])
+    
+    CheckActive -->|Yes| ParallelOps[Parallel Operations]
+    
+    ParallelOps --> Analytics[Create ClickAnalytics Record]
+    ParallelOps --> IncrementCount[Increment clickCount]
+    
+    Analytics --> CaptureIP[Capture IP Address]
+    CaptureIP --> CaptureUA[Capture User Agent]
+    CaptureUA --> CaptureRef[Capture Referrer]
+    CaptureRef --> SaveAnalytics[(Save to ClickAnalytics)]
+    
+    IncrementCount --> UpdateDB[(Update URL clickCount)]
+    
+    SaveAnalytics --> WaitBoth[Wait for both operations]
+    UpdateDB --> WaitBoth
+    
+    WaitBoth --> Redirect[Return 302 Redirect]
+    
+    Redirect --> BrowserRedirect[Browser redirects automatically]
+    
+    BrowserRedirect --> Success([User reaches destination])
+    
+    style Start fill:#4CAF50,stroke:#2E7D32,color:#fff
+    style Success fill:#4CAF50,stroke:#2E7D32,color:#fff
+    style End404 fill:#f44336,stroke:#c62828,color:#fff
+    style EndInactive fill:#f44336,stroke:#c62828,color:#fff
+    style QueryDB fill:#2196F3,stroke:#1565C0,color:#fff
+    style SaveAnalytics fill:#2196F3,stroke:#1565C0,color:#fff
+    style UpdateDB fill:#2196F3,stroke:#1565C0,color:#fff
+    style CheckExists fill:#FF9800,stroke:#E65100,color:#fff
+    style CheckActive fill:#FF9800,stroke:#E65100,color:#fff
+```
+
+## 🔍 Detailed Step-by-Step Process
+
+### 1. **User Clicks Shortened URL**
+   - Example: `http://localhost:3000/s/abc123`
+   - Browser sends GET request to the server
+
+### 2. **Route Handler Receives Request**
+   - Next.js App Router matches the dynamic route: `app/s/[shortCode]/route.ts`
+   - Extracts `shortCode` from URL parameters (e.g., "abc123")
+
+### 3. **Database Query**
+   - Prisma queries MongoDB to find URL record matching the shortCode
+   - Query: `prisma.url.findUnique({ where: { shortCode: 'abc123' } })`
+
+### 4. **URL Validation**
+   - **Check if URL exists**: If not found, return 404 error
+   - **Check if URL is active**: If `isActive = false`, return 404 error
+
+### 5. **Parallel Operations** (for better performance)
+   
+   **Operation A - Analytics Tracking:**
+   - Capture visitor data:
+     - IP Address (from request headers)
+     - User Agent (browser/device info)
+     - Referrer (where user came from)
+   - Create new record in `ClickAnalytics` collection
+   
+   **Operation B - Click Count Update:**
+   - Increment the `clickCount` field by 1
+   - Updates the `Url` record in database
+
+### 6. **Redirect Response**
+   - Server returns HTTP 302 (Temporary Redirect)
+   - Response header: `Location: <original-long-url>`
+   - Browser automatically follows the redirect
+
+### 7. **User Reaches Destination**
+   - Browser navigates to the original URL
+   - User sees the intended website
+
+## 📈 Analytics Data Captured
+
+For each click, the following information is stored:
+
+| Field | Description | Example |
+|-------|-------------|---------|
+| `urlId` | Reference to the URL record | ObjectId(...) |
+| `ipAddress` | Visitor's IP address | "192.168.1.1" |
+| `userAgent` | Browser and device info | "Mozilla/5.0..." |
+| `referer` | Source of the click | "https://twitter.com" |
+| `clickedAt` | Timestamp of click | 2025-11-04T10:30:00Z |
+
+---
+
 ## ✨ Features
 
 - 🔐 **OAuth Authentication** - Sign in with Google or GitHub
