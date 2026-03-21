@@ -32,5 +32,15 @@
     "eslint-config-next": "16.0.1",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "overrides": {
+    "pratham-sso": {
+      "next": "16.0.1"
+    }
+  },
+  "peerDependenciesMeta": {
+    "next": {
+      "optional": true
+    }
   }
 }
