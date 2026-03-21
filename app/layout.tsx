@@ -1,5 +1,4 @@
 import { Providers } from './providers'
-import { Toaster } from 'sonner'
 import './globals.css'
 
 export const metadata = {
@@ -17,7 +16,6 @@ export default function RootLayout({
       <body className="antialiased">
         <Providers>
           {children}
-          <Toaster position="top-right" richColors />
         </Providers>
       </body>
     </html>

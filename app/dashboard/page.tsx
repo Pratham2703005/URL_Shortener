@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useSession, signOut } from 'next-auth/react'
+import { useSSO } from 'pratham-sso'
 import { useRouter } from 'next/navigation'
-import { toast } from 'sonner';
-import { Copy , LogOut } from 'lucide-react';
+import { toast } from 'robot-toast';
+import { Copy } from 'lucide-react';
+import { useSyncStatus } from '@/app/providers';
 
 
 type Url = {
@@ -19,10 +20,11 @@ type Url = {
 }
 
 export default function DashboardPage() {
-  const { data: session, status } = useSession()
+  const { session, loading } = useSSO()
+  const { isSynced } = useSyncStatus()
   const router = useRouter()
   const [urls, setUrls] = useState<Url[]>([])
-  const [loading, setLoading] = useState(true)
+  const [pageLoading, setPageLoading] = useState(true)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   
@@ -32,36 +34,39 @@ export default function DashboardPage() {
   
   // Redirect if not authenticated
   useEffect(() => {
-    if (status === 'unauthenticated') {
+    if (!session?.user?.email && !loading) {
       router.push('/')
     }
-  }, [status, router])
+  }, [session?.user?.email, loading, router])
   
   // Fetch URLs
   const fetchUrls = async (showLoadingState = true) => {
     try {
       if (showLoadingState) {
-        setLoading(true)
+        setPageLoading(true)
       }
       const res = await fetch('/api/urls')
       if (!res.ok) throw new Error('Failed to fetch URLs')
       const data = await res.json()
       setUrls(data.urls)
+      setError('')
     } catch (err) {
       console.error(err)
       setError('Failed to load URLs')
     } finally {
       if (showLoadingState) {
-        setLoading(false)
+        setPageLoading(false)
       }
     }
   }
   
   useEffect(() => {
-    if (status === 'authenticated') {
+    // Only fetch URLs after session is synced
+    // Use optional chaining to avoid dependency on entire session object
+    if (session?.user?.email && isSynced) {
       fetchUrls()
     }
-  }, [status])
+  }, [session?.user?.email, isSynced])
   
   // Create URL
   const handleCreateUrl = async (e: React.FormEvent) => {
@@ -72,7 +77,13 @@ export default function DashboardPage() {
     // Check if user has reached the limit of 5 active URLs
     const activeUrlsCount = urls.filter(url => url.isActive).length
     if (activeUrlsCount >= 5) {
-      toast.error('You can only have 5 active URLs at a time. Please deactivate some URLs first.')
+      toast.error({
+        message: 'You can only have 5 active URLs at a time. Please deactivate some URLs first.',
+        robotVariant: 'think',
+        theme: 'dark',
+        autoClose: 5000,
+        hideProgressBar: true
+      })
       setError('You can only have 5 active URLs at a time. Please deactivate some URLs first.')
       return
     }
@@ -126,10 +137,21 @@ export default function DashboardPage() {
         prevUrls.map(url => url.id === tempId ? data.url : url)
       )
       setSuccess('Short URL created successfully! 🎉')
-      toast.success('Short URL created successfully! 🎉')
+      toast.success({
+        message: 'Short URL created successfully! 🎉',
+        robotVariant: 'success',
+        theme: 'dark',
+        autoClose: 3000,
+      })
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to create URL'
-      toast.error(errorMessage)
+      toast.error({
+        message: errorMessage,
+        robotVariant: 'error',
+        theme: 'dark',
+        autoClose: 5000,
+        hideProgressBar: true
+      })
       setError(errorMessage)
     }
   }
@@ -151,19 +173,43 @@ export default function DashboardPage() {
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
           ))
         }
-        toast.error('Failed to delete URL')
+        toast.error({
+          message: 'Failed to delete URL',
+          robotVariant: 'error',
+          theme: 'dark',
+          autoClose: 3000,
+          hideProgressBar: true
+        })
         throw new Error('Failed to delete URL')
       }
-      toast.success('URL deleted successfully')
+      toast.success({
+        message: 'URL deleted successfully',
+        robotVariant: 'wave',
+        theme: 'dark',
+        autoClose: 3000
+      })
     } catch {
       // Error toast already shown above
+      toast.error({
+        message: 'Failed to delete URL',
+        robotVariant: 'error',
+        theme: 'dark',
+        autoClose: 3000,
+        hideProgressBar: true
+      })
     }
   }
   
   // Toggle active status
   const handleToggle = async (id: string, isActive: boolean) => {
     if(!isActive && urls.filter(url => url.isActive).length >= 5) {
-      toast.error('You can only have 5 active URLs at a time. Please deactivate some URLs first.')
+      toast.error({
+        message: 'You can only have 5 active URLs at a time. Please deactivate some URLs first.',
+        robotVariant: 'error',
+        theme: 'dark',
+        autoClose: 3000,
+        hideProgressBar: true
+      })
       return
     }
 
@@ -175,7 +221,13 @@ export default function DashboardPage() {
     )
     
     // Show immediate feedback
-    toast.success(isActive ? 'URL deactivated' : 'URL activated')
+    toast.success({
+      message: isActive ? 'URL deactivated' : 'URL activated',
+      robotVariant: 'wave',
+      theme: 'dark',
+      hideProgressBar: true,
+      autoClose: 3000
+    })
     
     try {
       const res = await fetch(`/api/urls/${id}`, {
@@ -190,7 +242,13 @@ export default function DashboardPage() {
             url.id === id ? { ...url, isActive } : url
           )
         )
-        toast.error('Failed to update URL')
+        toast.error({
+          message: 'Failed to update URL',
+          robotVariant: 'error',
+          theme: 'dark',
+          autoClose: 3000,
+          hideProgressBar: true
+        })
         throw new Error('Failed to update URL')
       }
     } catch {
@@ -202,13 +260,22 @@ export default function DashboardPage() {
   const copyToClipboard = (shortCode: string, customAlias: string | null) => {
     const shortUrl = `${window.location.origin}/s/${customAlias || shortCode}`
     navigator.clipboard.writeText(shortUrl)
-    toast.success('Copied to clipboard! 📋')
+    toast.success({
+      message: 'Copied to clipboard! 📋',
+      robotVariant: 'wave',
+      hideProgressBar: true,
+      autoClose: 3000,
+      theme: 'dark'
+    })
   }
   
-  if (status === 'loading' || loading) {
+  if (loading || !isSynced || pageLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="text-lg">Loading...</div>
+        <div className="text-center">
+          <div className="mb-4 text-lg font-semibold">Setting up your session...</div>
+          <div className="text-sm text-gray-500">Please wait while we prepare your dashboard</div>
+        </div>
       </div>
     )
   }
@@ -226,22 +293,7 @@ export default function DashboardPage() {
             <h1 className="text-2xl sm:text-3xl font-bold text-zinc-100">Dashboard</h1>
             <p className="text-sm sm:text-base text-zinc-400 truncate max-w-[200px] sm:max-w-none">Welcome back, {session.user?.name}!</p>
           </div>
-          <div className="flex items-center gap-2 sm:gap-4">
-            {session.user?.image && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={session.user.image}
-                alt="Profile"
-                className="h-8 w-8 sm:h-10 sm:w-10 rounded-full"
-              />
-            )}
-            <button
-              onClick={() => signOut()}
-              className="rounded-full hover:bg-[rgba(255,0,0,0.1)] hover:outline-1 hover:outline-red-900 p-3 sm:p-4"
-            >
-              <LogOut className='text-red-600' size={16} />
-            </button>
-          </div>
+          <div className="flex items-center gap-2 sm:gap-4"></div>
         </div>
         
         {/* Alerts */}
