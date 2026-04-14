@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
           },
         }),
         new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Request timeout')), 5000)
+          setTimeout(() => reject(new Error('Request timeout')), 1000)
         ) as Promise<Response>,
       ]);
 

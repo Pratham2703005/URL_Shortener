@@ -15,48 +15,33 @@ function SyncUserOnAuth({ children }: { children: React.ReactNode }) {
   const { session, loading } = useSSO()
   const [isSynced, setIsSynced] = useState(false)
   const syncAttemptedRef = useRef<string | null>(null)
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     // Only sync if we have a session and haven't already synced this email
     if (session?.user?.email && !loading && syncAttemptedRef.current !== session.user.email) {
       syncAttemptedRef.current = session.user.email
-      
-      // Clear any pending timeout
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current)
-      }
 
-      // Debounce the sync call - wait 200ms to see if session keeps changing
-      timeoutRef.current = setTimeout(() => {
-        fetch('/api/auth/sync-user', {
-          method: 'POST',
-        })
-          .then(response => {
-            if (response.ok) {
-              setIsSynced(true)
-            } else {
-              console.error('Failed to sync user:', response.statusText)
-              setIsSynced(false)
-            }
-          })
-          .catch(error => {
-            console.error('Failed to sync user:', error)
+      // Immediately start sync - no debounce on account switch
+      fetch('/api/auth/sync-user', {
+        method: 'POST',
+      })
+        .then(response => {
+          if (response.ok) {
+            setIsSynced(true)
+          } else {
+            console.error('Failed to sync user:', response.statusText)
             setIsSynced(false)
-          })
-      }, 200)
+          }
+        })
+        .catch(error => {
+          console.error('Failed to sync user:', error)
+          setIsSynced(false)
+        })
     } else if (!session && !loading) {
       // User logged out
       syncAttemptedRef.current = null
-      setIsSynced(false)
     }
-
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current)
-      }
-    }
-  }, [session?.user?.email, loading])
+  }, [session?.user?.email, loading, session])
 
   return (
     <SyncContext.Provider value={{ isSynced }}>

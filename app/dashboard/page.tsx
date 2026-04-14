@@ -269,12 +269,23 @@ export default function DashboardPage() {
     })
   }
   
-  if (loading || !isSynced || pageLoading) {
+  if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
-          <div className="mb-4 text-lg font-semibold">Setting up your session...</div>
-          <div className="text-sm text-gray-500">Please wait while we prepare your dashboard</div>
+          <div className="mb-4 text-lg font-semibold">Logging you in...</div>
+          <div className="text-sm text-gray-500">Initializing your session</div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!isSynced && session?.user?.email) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center">
+          <div className="mb-4 text-lg font-semibold">Syncing your data...</div>
+          <div className="text-sm text-gray-500">Retrieving your URLs</div>
         </div>
       </div>
     )
@@ -369,7 +380,11 @@ export default function DashboardPage() {
         <div className="rounded-lg bg-white p-4 sm:p-6 shadow-md invert">
           <h2 className="mb-4 text-lg sm:text-xl font-bold text-gray-900">Your URLs</h2>
           
-          {urls.length === 0 ? (
+          {pageLoading ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500">Loading your URLs...</p>
+            </div>
+          ) : urls.length === 0 ? (
             <p className="text-center text-gray-500 py-8">
               No URLs yet. Create your first one above!
             </p>
