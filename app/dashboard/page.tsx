@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useSSO } from 'pratham-sso'
 import { useRouter } from 'next/navigation'
 import { toast } from 'robot-toast';
-import { Copy } from 'lucide-react';
+import { Copy, RefreshCw } from 'lucide-react';
 import { useSyncStatus } from '@/app/providers';
 
 
@@ -378,7 +378,20 @@ export default function DashboardPage() {
         
         {/* URLs List */}
         <div className="rounded-lg bg-white p-4 sm:p-6 shadow-md invert">
-          <h2 className="mb-4 text-lg sm:text-xl font-bold text-gray-900">Your URLs</h2>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900">Your URLs</h2>
+            <button
+              onClick={() => fetchUrls(true)}
+              disabled={pageLoading}
+              className="rounded-lg p-2 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title="Refresh URLs"
+            >
+              <RefreshCw 
+                size={18} 
+                className={`text-gray-600 ${pageLoading ? 'animate-spin' : ''}`}
+              />
+            </button>
+          </div>
           
           {pageLoading ? (
             <div className="text-center py-8">
