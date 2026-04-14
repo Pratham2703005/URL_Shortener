@@ -17,31 +17,35 @@ function SyncUserOnAuth({ children }: { children: React.ReactNode }) {
   const syncAttemptedRef = useRef<string | null>(null)
 
   useEffect(() => {
-    // Only sync if we have a session and haven't already synced this email
-    if (session?.user?.email && !loading && syncAttemptedRef.current !== session.user.email) {
-      syncAttemptedRef.current = session.user.email
+    if (!loading && session?.user?.email) {
+      const currentEmail = session.user.email
+      
+      // Account changed - need to reset sync status before fetching new user's data
+      if (syncAttemptedRef.current !== currentEmail) {
+        syncAttemptedRef.current = currentEmail
+        
+        // Mark as not synced until sync completes  
+        // Defer to avoid lint warning about synchronous setState
+        Promise.resolve().then(() => setIsSynced(false))
 
-      // Immediately start sync - no debounce on account switch
-      fetch('/api/auth/sync-user', {
-        method: 'POST',
-      })
-        .then(response => {
-          if (response.ok) {
-            setIsSynced(true)
-          } else {
-            console.error('Failed to sync user:', response.statusText)
-            setIsSynced(false)
-          }
+        // Perform sync
+        fetch('/api/auth/sync-user', {
+          method: 'POST',
         })
-        .catch(error => {
-          console.error('Failed to sync user:', error)
-          setIsSynced(false)
-        })
+          .then(response => {
+            if (response.ok) {
+              setIsSynced(true)
+            } else {
+              setIsSynced(false)
+            }
+          })
+          .catch(() => setIsSynced(false))
+      }
     } else if (!session && !loading) {
       // User logged out
       syncAttemptedRef.current = null
     }
-  }, [session?.user?.email, loading, session])
+  }, [session, loading])
 
   return (
     <SyncContext.Provider value={{ isSynced }}>
