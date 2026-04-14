@@ -13,31 +13,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if user is already synced (to avoid redundant calls)
-    const userIdCookie = request.cookies.get('__sso_user_id')?.value;
-    if (userIdCookie) {
-      try {
-        const existingUser = await prisma.user.findUnique({
-          where: { id: userIdCookie },
-        });
-        
-        if (existingUser) {
-          return NextResponse.json({
-            success: true,
-            user: {
-              id: existingUser.id,
-              email: existingUser.email,
-              name: existingUser.name,
-            },
-          });
-        }
-      } catch (error) {
-        console.warn('Could not find existing user by ID, will re-sync:', error);
-      }
-    }
-
+    // ALWAYS validate current session against IDP - don't trust cached user ID
     // Call /api/me to get session data from Pratham-SSO
-    // Use a shorter timeout since this is an internal call
     const meUrl = new URL('/api/me', request.nextUrl.origin);
     
     let sessionData;
@@ -51,7 +28,7 @@ export async function POST(request: NextRequest) {
           },
         }),
         new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Request timeout')), 1000)
+          setTimeout(() => reject(new Error('Request timeout')), 3000)
         ) as Promise<Response>,
       ]);
 
