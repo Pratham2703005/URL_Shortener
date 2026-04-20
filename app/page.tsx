@@ -3,18 +3,18 @@
 import { useSSO } from 'pratham-sso'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
+import LoginButton from '@/components/LoginButton'
 
 export default function Home() {
   const { session } = useSSO()
   const router = useRouter()
-  
-  // Redirect authenticated users to dashboard
+
   useEffect(() => {
     if (session?.user?.email) {
       router.push('/dashboard')
     }
   }, [session?.user?.email, router])
-  
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-8 md:p-24 bg-black">
       <div className="text-center max-w-2xl w-full px-4">
@@ -22,6 +22,7 @@ export default function Home() {
         <p className="text-base sm:text-lg text-gray-300 mb-6 sm:mb-8 w-full">
           Shorten your links, track analytics, and share with ease.
         </p>
+        <LoginButton />
       </div>
     </main>
   )

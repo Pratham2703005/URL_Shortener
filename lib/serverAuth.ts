@@ -32,34 +32,48 @@ export async function getCurrentUser() {
   }
 }
 
-export async function requireAuth() {
+async function resolveUserFromIdp(sessionCookie: string) {
+  const idpServer = process.env.NEXT_PUBLIC_IDP_SERVER
+  if (!idpServer) return null
+
   try {
-    const cookieStore = await cookies()
-    const sessionCookie = cookieStore.get('__sso_session')?.value
-
-    if (!sessionCookie) {
-      throw new Error("Unauthorized")
-    }
-
-    // Try to get user from __sso_user_id cookie (set by sync-user endpoint)
-    const userIdCookie = cookieStore.get('__sso_user_id')?.value
-
-    if (userIdCookie) {
-      const user = await prisma.user.findUnique({
-        where: { id: userIdCookie },
-      })
-
-      if (user) {
-        return user
-      }
-    }
-
-    // As a last resort, throw error - user should have been synced
-    // This shouldn't happen in normal flow since Providers handles sync
-    throw new Error("User not found in database. Please try logging in again.")
-  } catch (error) {
-    throw error
+    const res = await fetch(`${idpServer.replace(/\/$/, '')}/api/auth/session`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Cookie: `__sso_session=${sessionCookie}`,
+      },
+      body: JSON.stringify({ session_id: sessionCookie }),
+      cache: 'no-store',
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    const email: string | undefined = data?.user?.email
+    if (!email) return null
+    return await prisma.user.findUnique({ where: { email } })
+  } catch {
+    return null
   }
+}
+
+export async function requireAuth() {
+  const cookieStore = await cookies()
+  const sessionCookie = cookieStore.get('__sso_session')?.value
+
+  if (!sessionCookie) {
+    throw new Error("Unauthorized")
+  }
+
+  const userIdCookie = cookieStore.get('__sso_user_id')?.value
+  if (userIdCookie) {
+    const user = await prisma.user.findUnique({ where: { id: userIdCookie } })
+    if (user) return user
+  }
+
+  const user = await resolveUserFromIdp(sessionCookie)
+  if (user) return user
+
+  throw new Error("Unauthorized")
 }
 
 export async function getOrCreateUser(idpUser: { id?: string; email?: string; name?: string }) {

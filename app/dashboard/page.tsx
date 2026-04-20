@@ -21,7 +21,7 @@ type Url = {
 
 export default function DashboardPage() {
   const { session, loading } = useSSO()
-  const { isSynced } = useSyncStatus()
+  const { isSynced, isSyncing, error: syncError, retry: retrySync } = useSyncStatus()
   const router = useRouter()
   const [urls, setUrls] = useState<Url[]>([])
   const [pageLoading, setPageLoading] = useState(true)
@@ -281,10 +281,34 @@ export default function DashboardPage() {
   }
 
   if (!isSynced && session?.user?.email) {
+    if (syncError) {
+      return (
+        <div className="flex min-h-screen items-center justify-center bg-black px-4">
+          <div className="text-center max-w-md">
+            <div className="mb-2 text-lg font-semibold text-red-500">Sync failed</div>
+            <div className="mb-4 text-sm text-zinc-400">{syncError}</div>
+            <div className="flex gap-2 justify-center">
+              <button
+                onClick={retrySync}
+                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
+              >
+                Retry
+              </button>
+              <button
+                onClick={() => router.push('/')}
+                className="rounded-lg bg-zinc-700 px-4 py-2 text-sm font-medium text-zinc-200 hover:bg-zinc-600 transition-colors"
+              >
+                Sign in again
+              </button>
+            </div>
+          </div>
+        </div>
+      )
+    }
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
-          <div className="mb-4 text-lg font-semibold">Syncing your data...</div>
+          <div className="mb-4 text-lg font-semibold">{isSyncing ? 'Syncing your data...' : 'Preparing your session...'}</div>
           <div className="text-sm text-gray-500">Retrieving your URLs</div>
         </div>
       </div>
